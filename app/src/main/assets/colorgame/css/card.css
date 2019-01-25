@@ -1,0 +1,151 @@
+        @font-face {
+          font-family:"MyFont";
+          src: url("../font/BigDots.ttf") format("truetype");
+        }
+        * {
+            margin: 0;
+            padding: 0;
+
+        }
+        .rank{
+            position: absolute;
+            width:100%;
+            height: 550px;
+            display:none;
+            overflow:auto;
+            z-index: 10;
+        }
+        table{
+            width:400px;
+            color: white;
+            margin: 0 auto;
+
+        }
+        table,th,td{
+            font-size: 1rem;
+            text-align: center;
+
+        }
+        th,td{
+
+             border: 1px solid;
+        }
+        tr{
+
+            height: 1rem;
+        }
+        .rankoption{
+            width: 300px;
+            margin: 0 auto;
+            display: flex;
+            align-items: flex-end;
+        }
+        .opcolor1{
+            position: relative;
+            width: 33%;
+            text-align: center;
+        }
+        .opcolor2{
+            position: relative;
+            width: 33%;
+            text-align: center;
+        }
+        .opcount{
+            position: relative;
+            width: 34%;
+            font-size:2rem;
+            text-align: center;
+            color: white;
+        }
+        #selc1{
+            display: inline-block;
+            width: 2rem;
+            height: 2rem;
+            border-radius: 0.5rem;
+        }
+        #selc2{
+            display: inline-block;
+            width: 2rem;
+            height: 2rem;
+            border-radius: 0.5rem;
+        }
+        .showlist{
+            display: flex !important;
+            overflow:hidden;
+        }
+        #color1 {
+            flex-direction: column;
+            display: none;
+            position: absolute;
+            right: 0px;
+            z-index: 10;
+        }
+
+        #color1 li{
+            display: inline-block;
+
+            width: 2rem;
+            height: 2rem;
+            margin-bottom: 5px;
+            border-radius: 0.5rem;
+
+        }
+         #color2 {
+            flex-direction: column;
+            display: none;
+            position: absolute;
+            right: 0px;
+        }
+
+        #color2 li{
+            display: inline-block;
+             width: 2rem;
+            height: 2rem;
+            margin-bottom: 5px;
+            border-radius: 0.5rem;
+        }
+       #blo{
+            display: inline;
+
+        }
+        #blosel {
+            flex-direction: column;
+            display: none;
+            position: absolute;
+            right: 0px;
+            border-radius: 0.5rem;
+            background: rgba(0,0,0,0.8);
+        }
+
+        #blosel li{
+            display: inline-block;
+
+        }
+        .redop{
+            background: red;
+        }
+        .yellowop{
+            background: yellow;
+        }
+        .greenop{
+            background: green;
+        }
+        .blueop{
+            background: blue;
+        }
+        .purpleop{
+            background: purple;
+        }
+        .cyanop{
+            background: cyan;
+        }
+        .blackop{
+            background: black;
+        }
+        .whiteop{
+            background: white;
+        }
+
+        span{
+            font-size:"1rem";
+        }

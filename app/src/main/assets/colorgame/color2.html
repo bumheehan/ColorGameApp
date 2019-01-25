@@ -1,0 +1,746 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Document</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            background: 0xffff00;
+        }
+        .rank{
+            position: absolute;
+            width:100%;
+            height: 400px;
+            display: none;
+            overflow:auto;
+        }
+        table{
+            width:300px;
+            color: aqua;
+            margin: 0 auto;
+
+
+        }
+        table,th,td{
+            font-size: 1rem;
+            text-align: center;
+
+        }
+        th,td{
+            padding: 5px;
+        }
+    </style>
+    <script src="js/jquery-3.3.1.min.js"></script>
+    <script src="js/pixi.js"></script>
+    <script src="js/pixi-filter.js"></script>
+</head>
+
+<body>
+<div class="rank">
+    <table id="tab">
+
+    </table>
+
+
+</div>
+
+
+</body>
+
+<script>
+    const width = 400,
+        height = 400;
+    let appw = 600,
+        apph = 800;
+    const count = 2; // X x X 원하는크기로 바꿀수 있음
+    const MAXNUM = count * count;
+    let items = [];
+    var num = 0; //시작 넘버
+    let colorSet = [];
+    let numList = [];
+    let shockList = [];
+    let ctime;
+    let ptime;
+    let otime; //맞출때 시간입력
+    let hintc = 65793 //힌트컬러
+    let inGame = false;
+
+    const START = 0;
+    const CLOSE = 1;
+    const SETTING = 2;
+    const END = 3;
+    const INIT = 4;
+    const RANKING = 5;
+
+    let settingVib = true;
+    let settingSnd = true;
+    let settingEff = true;
+
+    let ip=null;
+
+    let backSound = new Audio("sound/back.mp3");
+    backSound.play();
+    let s = new Audio("sound/s.wav");
+    let f = new Audio("sound/f.wav");
+
+    function loading (){
+
+        backSound.loop = true;
+
+        $.getJSON('http://gd.geobytes.com/GetCityDetails?callback=?', function(data) {
+          ip=data["geobytesremoteip"];
+        });
+
+        gamestate(INIT);
+    }
+
+
+
+
+    PIXI.loader
+        .add("images/rcs.svg")
+        .on('error', () => {})
+        .load(() => {
+            console.log("pixi load complete")
+            loading();
+
+        });
+
+
+    ////////////////////////////////
+    ///컬러 리스트
+    ////////////////////////////////
+    const CCS = CreateColorSet3;
+
+    function CreateColorSet() {
+        let colorN = count * count;
+        let delta = 255 / colorN;
+        for (i = 0; i < colorN; i++) {
+            let selectC = 0;
+            if (i == 0) selectC = 0;
+            else selectC = Math.floor(i * delta);
+            if (selectC > 255) {
+                selectC = 255;
+                console.log("255");
+            }
+            let hex = PIXI.utils.rgb2hex([selectC / 255, selectC / 255, selectC / 255]);
+
+            colorSet.push(hex);
+        }
+    }
+
+    function CreateColorSet2() {
+        //16777215
+        let colorN = count * count;
+        let delta = 16777215 / colorN;
+        for (i = 0; i < colorN; i++) {
+            colorSet.push(Math.floor(i * delta));
+        }
+    }
+
+
+    function CreateColorSet3(sel) {
+        let colorspec = [0x000000, 0x0000ff, 0x00ffff, 0x00ff00, 0xffff00, 0xff0000, 0xff00ff, 0xffffff];
+        let colordelta = [1, 256, -1, 65536, -256, 1, 256, -65793];
+        let colorN = count * count;
+        let delta = Math.floor(colordelta[sel] * 255/colorN);
+        for (i = 0; i < colorN; i++) {
+            colorSet.push(colorspec[sel] + i * delta);
+        }
+    }
+    let Application = PIXI.Application,
+        Container = PIXI.Container,
+        loader = PIXI.loader,
+        resources = PIXI.loader.resources,
+        Graphics = PIXI.Graphics,
+        TextureCache = PIXI.utils.TextureCache,
+        Sprite = PIXI.Sprite,
+        Text = PIXI.Text,
+        TextStyle = PIXI.TextStyle;
+
+    //상자
+    let app = new Application(1000, 2000, {
+        antialiasing: true,
+        transparent: false,
+        resolution: 2
+    });
+     //픽시 폰트스타일
+    let style = new TextStyle({
+        fontFamily: "Arial",
+        fontSize: 40,
+        fill: "white",
+        stroke: '#ff7373',
+        strokeThickness: 4,
+        dropShadow: true,
+        dropShadowColor: "#000000",
+        dropShadowBlur: 4,
+        dropShadowAngle: Math.PI / 6,
+        dropShadowDistance: 10,
+    });
+    //아이템컨테이너 배경
+
+    app.renderer.autoResize = true;
+    app.renderer.backgroundColor = 0x000000;
+    document.body.appendChild(app.view);
+
+    let frame = new PIXI.Graphics();
+    frame.lineStyle(5, 0xffffFF, 1, 0);
+    frame.beginFill(0xffffff, 0.5);
+    frame.drawRoundedRect(0, 0, appw, apph);
+    frame.endFill();
+
+
+    ///////
+    /// 컨테이너
+    ///////
+
+    let startCont = new Container();
+    let gameCont = new Container;
+    let endCont = new Container();
+    let setCont = new Container();
+    let rankCont = new Container();
+    ////////////////////////////////
+    //시작창
+    ////////////////////////////////
+
+
+
+    function Start() {
+        let t = new PIXI.Graphics();
+        t.lineStyle(5, 0xffffFF, 1, 0);
+        t.beginFill(0xffffff, 0);
+        t.drawRoundedRect(0, 0, width, 500);
+        t.endFill();
+
+
+
+        let start = new Text("START", style);
+        let end = new Text("CLOSE", style);
+        let setting = new Text("SETTING", style);
+        let ranking = new Text("RANKING", style);
+
+        start.anchor.set(0.5, 0.5);
+        end.anchor.set(0.5, 0.5);
+        ranking.anchor.set(0.5, 0.5);
+        setting.anchor.set(0.5, 0.5);
+
+        start.position.set(width / 2, height / 4 );
+        ranking.position.set(width / 2, height / 4+100);
+        setting.position.set(width / 2, height / 4 + 200);
+        end.position.set(width / 2, height / 4 + 300);
+
+        start.interactive = true;
+        start.buttonMode = true;
+        start.on('pointerdown', () => {
+            gamestate(START)
+        });
+
+
+        ranking.interactive = true;
+        ranking.buttonMode = true;
+        ranking.on('pointerdown', () => {
+            gamestate(RANKING)
+        });
+
+        end.interactive = true;
+        end.buttonMode = true;
+        end.on('pointerdown', () => {
+            Android.clos();
+        });
+
+        setting.interactive = true;
+        setting.buttonMode = true;
+        setting.on('pointerdown', () => {
+            gamestate(SETTING)
+        });
+
+        startCont.addChild(start);
+        startCont.addChild(ranking);
+        startCont.addChild(end);
+        startCont.addChild(setting);
+
+        startCont.addChild(t);
+    }
+    Start();
+    ////////////////////////////////
+    //세팅
+    ////////////////////////////////
+
+
+    function Setting() {
+        let t = new PIXI.Graphics();
+        t.lineStyle(5, 0xffffFF, 1, 0);
+        t.beginFill(0xffffff, 0);
+        t.drawRoundedRect(0, 0, width, 500);
+        t.endFill();
+
+
+
+        let sound = new Text("SOUND \t: OFF", style);
+        let vib = new Text("VIBRATION \t: OFF", style);
+        let effect = new Text("EFFECT \t: OFF", style);
+        let back = new Text("BACK", style);
+
+        if (settingSnd) sound.text = "SOUND \t: ON"
+        if (settingVib) vib.text = "VIBRATION \t: ON"
+        if (settingEff) effect.text = "EFFECT \t: ON"
+
+        sound.anchor.set(0.5, 0.5);
+        vib.anchor.set(0.5, 0.5);
+        effect.anchor.set(0.5, 0.5);
+        back.anchor.set(0.5, 0.5);
+
+        sound.position.set(width / 2, height / 4 );
+        vib.position.set(width / 2, height / 4+100);
+        effect.position.set(width / 2, height / 4 + 200);
+        back.position.set(width / 2, height / 4 + 300);
+
+        sound.interactive = true;
+        sound.buttonMode = true;
+        sound.on('pointerdown', () => {
+            settingSnd = !settingSnd;
+            if (settingSnd) {
+                sound.text = "SOUND \t: ON"
+                backSound.play();
+            }
+            else {
+                sound.text = "SOUND \t: OFF"
+                backSound.pause();
+            }
+        });
+
+        vib.interactive = true;
+        vib.buttonMode = true;
+        vib.on('pointerdown', () => {
+            settingVib = !settingVib;
+            if (settingVib) vib.text = "VIBRATION \t: ON"
+            else vib.text = "VIBRATION \t: OFF"
+
+        });
+
+        effect.interactive = true;
+        effect.buttonMode = true;
+        effect.on('pointerdown', () => {
+            settingEff = !settingEff;
+            if (settingEff) effect.text = "EFFECT \t: ON"
+            else effect.text = "EFFECT \t: OFF"
+
+        });
+
+        back.interactive = true;
+        back.buttonMode = true;
+        back.on('pointerdown', () => {
+            gamestate(INIT)
+        });
+
+        setCont.addChild(sound);
+        setCont.addChild(vib);
+        setCont.addChild(effect);
+        setCont.addChild(back);
+        setCont.addChild(t);
+    }
+    Setting();
+    ////////////////////////////////
+    //랭킹
+    ////////////////////////////////
+
+
+    function Ranking() {
+        let t = new PIXI.Graphics();
+        t.lineStyle(5, 0xffffFF, 1, 0);
+        t.beginFill(0xffffff, 0);
+        t.drawRoundedRect(0, 0, 500, 700);
+        t.endFill();
+
+        let back = new Text("BACK", style);
+
+        back.anchor.set(0.5, 0.5);
+
+        back.position.set(500 / 2, 650);
+
+        back.interactive = true;
+        back.buttonMode = true;
+
+        back.on('pointerdown', () => {
+            gamestate(INIT)
+            document.getElementsByClassName("rank")[0].style.display="none";
+        });
+
+        rankCont.addChild(back);
+        rankCont.addChild(t);
+    }
+    Ranking();
+    /////////////////////////////////
+    //상단바
+    /////////////////////////////////
+    let tst = new TextStyle({
+        fontFamily: "Arial",
+        fontSize: 50,
+        fill: "white",
+    });
+    let timerT = new PIXI.Text("00 : 00 : 00", tst);
+    timerT.position.set(width / 2, -60);
+    timerT.anchor.set(0.5, 0.5);
+    let timer = new PIXI.Graphics();
+    timer.lineStyle(5, 0xffffFF, 1, 0);
+    timer.drawRoundedRect(0, -100, width, 80);
+    timer.interactive = true;
+    timer.on('mouseover', mouseover);
+    timer.on('mouseout', mouseout);
+    timer.addChild(timerT);
+    gameCont.addChild(timer);
+
+    ////////////////////////////////
+    ///게임종료
+    ////////////////////////////////
+
+    function End() {
+        let t = new PIXI.Graphics();
+        t.lineStyle(5, 0xffffFF, 1, 0);
+        t.beginFill(0xffffff, 0);
+        t.drawRoundedRect(0, 0, width, 400);
+        t.endFill();
+
+        let record = new Text("RECORD",style);
+        let restart = new Text("RESTART", style);
+        let close = new Text("BACK", style);
+
+        record.anchor.set(0.5, 0.5);
+        restart.anchor.set(0.5, 0.5);
+        close.anchor.set(0.5, 0.5);
+
+        record.position.set(width / 2, height / 4);
+        restart.position.set(width / 2, height / 4+100);
+        close.position.set(width / 2, height / 4 + 200);
+
+
+
+        restart.interactive = true;
+        restart.buttonMode = true;
+        restart.on('pointerdown', () => {
+            gamestate(START)
+        });
+
+        close.interactive = true;
+        close.buttonMode = true;
+        close.on('pointerdown', () => {
+            gamestate(INIT)
+        });
+        endCont.addChild(record);
+        endCont.addChild(restart);
+        endCont.addChild(close);
+
+        endCont.addChild(t);
+    }
+    End();
+
+    ///////////////////////////////
+    /// 버튼
+    ///////////////////////////////
+    function Grid() {
+        num = 0;
+        numList = createList();
+        let gap = 10;
+        let buttonSize = (width - (count + 1) * gap) / count;
+        for (i = 0; i < count; i++) {
+            items[i] = [];
+            for (j = 0; j < count; j++) {
+                let inputNum = numList[num++];
+                let text = new PIXI.Text(inputNum);
+                text.alpha = 0;
+                text.position.set((width / count) / 2 - gap / 2, (height / count) / 2 - gap / 2);
+                text.anchor.set(0.5, 0.5);
+
+                let rrect = new PIXI.Graphics();
+                rrect.beginFill(colorSet[inputNum - 1], 1);
+                rrect.drawRoundedRect(0, 0, buttonSize, buttonSize, buttonSize / 3);
+                rrect.endFill();
+                rrect.x = i * (buttonSize + gap) + gap;
+                rrect.y = j * (buttonSize + gap) + gap;
+                rrect.interactive = true;
+                rrect.buttonMode = true;
+                rrect.on('pointerdown', onClick);
+                rrect.addChild(text);
+                let sp = PIXI.Sprite.from("images/rcs.svg");
+                sp.position.set(0, 0);
+                sp.scale.set(buttonSize / 512, buttonSize / 512);
+                rrect.addChild(sp);
+
+                gameCont.addChild(rrect);
+                items[i][j] = rrect;
+            }
+        }
+        // 틀
+        let t = new PIXI.Graphics();
+        t.lineStyle(5, 0xffffFF, 1, 0);
+        t.beginFill(0xffffff, 0);
+        t.drawRoundedRect(0, 0, width, height);
+        t.endFill();
+
+
+        gameCont.addChild(t);
+
+        //
+        num = 1;
+    }
+
+    ///////////////////////////////
+    ///클릭
+    ///////////////////////////////
+    function onClick() {
+
+        if(settingVib) Android.vib();
+
+        if (this.children[0].text == num) {
+            this.alpha = 0;
+
+            //effect
+            let shock = new PIXI.filters.ShockwaveFilter();
+            shockList.push(shock);
+            shock.time = 0;
+            shock.center = {
+                x: this.x + (width / count) / 2,
+                y: this.y + (height / count) / 2
+            };
+            shock.amplitude = 5;
+            shock.wavelength = 50;
+            shock.speed = 2000;
+            shock.brightness = 1;
+            //sound
+            if(settingSnd) correctSound();
+
+            //여유되면 이전거 필터제거
+
+            if (num != MAXNUM) {
+                frame.tint = colorSet[num++];
+                //app.renderer.backgroundColor =
+                otime = new Date().getTime(); //맞춘거 확인
+            } else {
+                inGame = false;
+                if(ip!=null)sendRecord(mm, ss, ms);
+
+                gamestate(END);
+
+            }
+
+        } else {
+            //틀림
+
+            if(settingSnd) incorrectSound();
+        }
+    }
+    ////////////////////////////////
+    ///기록
+    ////////////////////////////////
+    function sendRecord(mm, ss, ms) {
+
+        //application/x-www-form-urlencoded
+        $.ajax({
+            url: "http://203.236.209.195:8080/ctr/data",
+
+            data: {
+                ip: ip,
+                mm: mm,
+                ss: ss,
+                ms: ms
+            },
+            type: 'POST',
+            success: function(result) {
+                //alert("업로드 성공!!");
+            }
+        });
+        //file ~~color2에서 서버 http:205~~~로 ajax로보내면
+
+
+    }
+
+    function mouseover() {
+        if (this.alpha != 0) this.alpha = 0.5;
+    }
+
+    function mouseout() {
+        if (this.alpha != 0) this.alpha = 1;
+    }
+    function correctSound(){
+        s.currentTime=0;
+        s.play();
+    }
+    function incorrectSound(){
+        f.currentTime=0;
+        f.play();
+    }
+
+
+    function createList() {
+        let list = [];
+        let chk = true;
+        while (list.length < MAXNUM) {
+            chk = true;
+            let num = Math.floor(Math.random() * MAXNUM) + 1;
+            list.forEach(function(currentValue, index, arr) {
+                if (num == currentValue) {
+                    chk = false;
+                }
+            });
+            if (chk) {
+                list.push(num);
+            }
+        }
+        return list;
+    }
+
+    function effect() {
+        shockList.forEach((shock) => {
+            shock.time = (shock.time >= 0.4 || shock.time == -1) ? -1 : shock.time + 0.01;
+            if (shock.time == -1) {
+                shock.enabled = false;
+            }
+            gameCont.filters = [shock];
+        });
+    }
+    let ms = 0;
+    let mm = 0;
+    let ss = 0;
+
+    function timechk() {
+        ctime = new Date().getTime();
+        let timed = ctime - ptime;
+        ms = Math.floor((timed % 1000) / 10);
+        if (ms < 10) ms = "0" + ms;
+        mm = Math.floor(timed / 60000);
+        if (mm < 10) mm = "0" + mm;
+        ss = Math.floor(timed / 1000) - mm * 60;
+        if (ss < 10) ss = "0" + ss;
+        timerT.text = mm + " : " + ss + " : " + ms;
+
+    }
+
+    function hint() {
+        let octime = new Date().getTime();
+        if ((octime - otime) / 1000 > 2) {
+            //다음거 필터넣기
+            let nn = numList.indexOf(num);
+            let i = Math.floor(nn / count);
+            let j = Math.floor(nn % count);
+
+            if (items[i][j].children[1].tint < Math.abs(hintc) * 8) {
+                hintc = Math.abs(hintc);
+            } else if (items[i][j].children[1].tint > (0xffffff - Math.abs(hintc) * 8)) {
+                hintc = -1 * Math.abs(hintc);
+            }
+            items[i][j].children[1].tint += hintc * 8;
+        }
+
+    }
+
+    function resize() {
+        gameCont.x = (frame.width - gameCont.width) / 2
+        gameCont.y = 200;
+        endCont.x = (frame.width - endCont.width) / 2
+        endCont.y = 100;
+        startCont.x = (frame.width - startCont.width) / 2
+        startCont.y = 100;
+        setCont.x = (frame.width - setCont.width) / 2
+        setCont.y = 100;
+        rankCont.x = (frame.width - rankCont.width) / 2
+        rankCont.y = 50;
+
+        let cappw = window.innerWidth*0.9;
+        let capph = cappw*4/3;
+        if (window.innerWidth *4/3 > window.innerHeight) {
+            //height에 맞춤
+            capph = window.innerHeight*0.9;
+            cappw = capph*3/4;
+
+        }
+        app.stage.scale.set(cappw/appw,capph/apph);
+
+        document.getElementById("tab").style.zoom=app.stage.width/559.575;
+        document.getElementsByClassName("rank")[0].style.top=(window.innerHeight/2 -app.stage.height/2+100*capph/apph)+"px"
+
+        app.stage.x = (app.screen.width - app.stage.width) / 2;
+        app.stage.y = (app.screen.height - app.stage.height) / 2;
+    }
+
+    function gamestate(state) {
+        switch (state) {
+            case START: //start
+                app.stage.removeChildren();
+                app.stage.addChild(frame);
+                app.stage.addChild(gameCont);
+
+                items = [];
+                num = 0; //시작 넘버
+                colorSet = [];
+                numList = [];
+                inGame = true;
+                ptime = new Date().getTime();
+                otime = new Date().getTime();
+                CCS(Math.floor(Math.random() * 8));
+                frame.tint = colorSet[0];
+                Grid();
+                //
+                break;
+            case CLOSE:
+
+                android.clos();
+                break;
+            case SETTING:
+
+                app.stage.removeChildren();
+                app.stage.addChild(frame);
+                app.stage.addChild(setCont);
+                break;
+            case END:
+                app.stage.removeChildren();
+                app.stage.addChild(frame);
+                endCont.children[0].text = mm+" : "+ss+" : "+ms;
+                app.stage.addChild(endCont);
+                break;
+            case INIT:
+                app.stage.removeChildren();
+                app.stage.addChild(frame);
+                app.stage.addChild(startCont);
+                break;
+            case RANKING:
+
+                 $.ajax({
+                    url: "http://203.236.209.195:8080/ctr/rank",
+                     data : {
+                         ip : ip
+                     },
+                     type:"POST",
+                    success: function(result) {
+                        document.getElementById("tab").innerHTML=result;
+                        app.stage.removeChildren();
+                        app.stage.addChild(frame);
+                        app.stage.addChild(rankCont);
+                        document.getElementsByClassName("rank")[0].style.display="flex";
+
+                    }
+                });
+
+
+
+                break;
+
+        }
+    }
+
+    app.ticker.add(function(time) {
+        if (inGame) {
+            timechk();
+            hint();
+        }
+        if(settingEff) effect();
+        resize();
+        app.renderer.resize(window.innerWidth, window.innerHeight)
+
+    });
+</script>
+
+</html>
